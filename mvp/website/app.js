@@ -1,7 +1,7 @@
 const STORAGE_KEY = "ai-operating-company-v0.1";
 
 const seedData = {
-  meta: { version: "0.1.0", companyName: "AI Operating Company", level: 12, xp: 7240, xpGoal: 10000 },
+  meta: { version: "0.2.0", companyName: "AI Operating Company", level: 12, xp: 7240, xpGoal: 10000 },
   divisions: [
     { id: "div-enterprise", name: "Enterprise", mission: "企業のAI変革を設計する", color: "#77aaff", budget: 2400000, revenue: 1280000, status: "active" },
     { id: "div-creator", name: "Creator", mission: "知識を売れる資産に変える", color: "#d9ff57", budget: 1200000, revenue: 860000, status: "active" },
@@ -44,7 +44,8 @@ const seedData = {
     { time: "09:18", agentId: "agt-006", text: "新規商談候補を12社抽出しました", type: "sales" },
     { time: "08:55", agentId: "agt-004", text: "市場シグナルを4件検知しました", type: "research" },
     { time: "08:31", agentId: "agt-003", text: "監督レビューを申請しました", type: "review" }
-  ]
+  ],
+  meetings: []
 };
 
 let state = loadState();
@@ -202,12 +203,81 @@ function renderDecisions() {
     <tbody>${state.decisions.map(d => `<tr><td>${safe(d.date)}<br><span class="reason">${safe(d.id)}</span></td><td class="decision-title">${safe(d.title)}</td><td><span class="badge ${d.status}">${statusLabel(d.status)}</span></td><td class="reason">${safe(d.reason)}</td><td>${safe(d.supervisor)}</td></tr>`).join("") || `<tr><td colspan="5">${emptyState()}</td></tr>`}</tbody></table></div>`;
 }
 
+const meetingPerspectives = {
+  "CEO Strategist": topic => `「${topic}」を会社目標との整合性で評価します。まず30日以内に検証できる最小単位へ絞り、継続条件と撤退条件を先に決めるべきです。`,
+  "Product Architect": topic => `顧客が最初に得る成果を一つに定義しましょう。「${topic}」の最小商品を7日で形にし、利用結果から次の機能を決める案を推します。`,
+  "Brand Director": topic => `誰のどんな変化を約束するのかが重要です。「${topic}」を機能ではなく顧客の物語として説明できるか、販売前に言葉と体験を揃えたいです。`,
+  "Research Analyst": topic => `判断材料として、顧客の困りごと、既存代替手段、支払意思の3点が不足しています。5件の短いヒアリングで仮説を反証できる状態にします。`,
+  "Growth Operator": topic => `制作前に需要を測れます。「${topic}」の告知ページと2種類の訴求を用意し、反応率と相談件数を先行指標にするのが効率的です。`,
+  "Sales Agent": topic => `営業現場では、対象顧客、価格、導入後の成果が一文で言えることが必要です。既存の見込み客10社へ直接聞けば、最短で商談化の可能性を確認できます。`
+};
+
+function buildMeeting(topic) {
+  const seed = [...topic].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const score = (base, offset) => Math.max(45, Math.min(98, base + ((seed + offset) % 11) - 5));
+  return {
+    id: `mtg-${Date.now()}`,
+    topic,
+    createdAt: new Date().toISOString(),
+    status: "discussing",
+    opinions: state.agents.map(agent => ({
+      agentId: agent.id,
+      text: (meetingPerspectives[agent.role] || (value => `「${value}」について、担当領域から小さく検証できる次の一手を提案します。`))(topic)
+    })),
+    candidates: [
+      { id:"experiment", title:"7日間の最小実験", detail:"対象顧客を絞り、小さな提供物と明確な成功基準で需要を検証する。", scores:{ 売上性:score(76,1), 速度:score(91,2), 戦略性:score(82,3), 安全性:score(88,4) } },
+      { id:"sales", title:"既存商品の営業強化", detail:"現在の商品と見込み客を活用し、提案・商談・成約のボトルネックを改善する。", scores:{ 売上性:score(88,5), 速度:score(80,6), 戦略性:score(73,7), 安全性:score(84,8) } },
+      { id:"research", title:"顧客調査を先行", detail:"判断に必要な証拠を集め、顧客課題・代替手段・支払意思を確定する。", scores:{ 売上性:score(65,9), 速度:score(72,10), 戦略性:score(91,11), 安全性:score(94,12) } }
+    ]
+  };
+}
+
+function candidateAverage(candidate) {
+  const values = Object.values(candidate.scores);
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function renderStrategy() {
+  const meeting = state.meetings?.[0];
+  const opinions = meeting?.opinions.map(opinion => {
+    const agent = agentOf(opinion.agentId);
+    const div = divisionOf(agent.divisionId);
+    return `<article class="opinion-card"><div class="opinion-head"><div class="large-avatar" style="color:${div.color}">${safe(agent.name.slice(0,2))}</div><div><strong>${safe(agent.name)}</strong><small>${safe(agent.role)}</small></div></div><p>${safe(opinion.text)}</p></article>`;
+  }).join("") || "";
+  const ranked = meeting ? [...meeting.candidates].sort((a,b) => candidateAverage(b) - candidateAverage(a)) : [];
+  const candidates = ranked.map((candidate, index) => {
+    const selected = meeting.selectedOption === candidate.id;
+    return `<article class="candidate-card ${index === 0 ? "recommended" : ""}">
+      <span class="badge ${selected ? "approved" : index === 0 ? "working" : "idle"}">${selected ? "採用済み" : index === 0 ? "推奨案" : `候補 ${index + 1}`}</span>
+      <h4>${safe(candidate.title)}</h4><p>${safe(candidate.detail)}</p>
+      <div class="score-list">${Object.entries(candidate.scores).map(([label, value]) => `<div class="score-item"><span>${safe(label)}</span><i style="--score:${value}%"></i><strong>${value}</strong></div>`).join("")}</div>
+      ${meeting.status === "decided" ? "" : `<button class="${index === 0 ? "primary-button" : "ghost-button"}" data-action="approve-meeting" data-meeting="${meeting.id}" data-option="${candidate.id}">この案を採用</button>`}
+    </article>`;
+  }).join("");
+  content.innerHTML = `${sectionIntro("Strategy Room", "AI社員の視点を並べ、次に取り組むことを監督と一緒に決めます。")}
+    <div class="mode-banner"><div><strong>TEMPLATE MODE / SERVERLESS</strong><p>現在は役割別テンプレートとルールで提案を生成しています。外部AIとの通信やAPI利用はありません。</p></div><span class="badge working">LOCAL ONLY</span></div>
+    <form id="meeting-form" class="meeting-form">
+      <textarea name="topic" maxlength="240" required placeholder="相談テーマを入力（例：次の30日で最優先すべき事業施策は？）"></textarea>
+      <button class="primary-button" type="submit">会議を招集</button>
+    </form>
+    ${meeting ? `<section class="panel">
+      <div class="meeting-meta"><span class="badge ${meeting.status === "decided" ? "approved" : "review"}">${meeting.status === "decided" ? "決定済み" : "議論中"}</span><small>${new Date(meeting.createdAt).toLocaleString("ja-JP")}</small></div>
+      <h3 class="meeting-topic">${safe(meeting.topic)}</h3>
+      <div class="panel-header"><h3>AI社員の見解</h3><small>${meeting.opinions.length} PERSPECTIVES</small></div>
+      <div class="opinion-grid">${opinions}</div>
+    </section>
+    <section class="panel" style="margin-top:16px"><div class="panel-header"><h3>実行候補の比較</h3><small>SCORE / 100</small></div><div class="candidate-grid">${candidates}</div>
+      ${meeting.status === "decided" ? `<div class="decision-result" style="margin-top:14px"><strong>監督判断をDecision Logへ保存しました</strong><p>選択した案を次の実行計画へ変換する準備ができています。</p></div>` : ""}
+    </section>` : `<div class="empty-state"><span>◇</span><h3>最初の作戦会議を始めましょう</h3><p>相談テーマを入力すると、AI社員6名の役割別見解と3つの実行候補を生成します。</p></div>`}`;
+}
+
 const views = {
   dashboard: { eyebrow: "COMPANY COMMAND CENTER", title: "おはようございます、監督。", render: renderDashboard },
   divisions: { eyebrow: "BUSINESS PORTFOLIO", title: "事業部を編成する", render: renderDivisions },
   agents: { eyebrow: "AI WORKFORCE", title: "AI社員を指揮する", render: renderAgents },
   products: { eyebrow: "VALUE PIPELINE", title: "商品を市場へ進める", render: renderProducts },
   kpi: { eyebrow: "PERFORMANCE CONTROL", title: "成果を計測し、改善する", render: renderKpi },
+  strategy: { eyebrow: "COLLECTIVE STRATEGY", title: "みんなで、次の一手を決める", render: renderStrategy },
   decisions: { eyebrow: "ORGANIZATIONAL MEMORY", title: "判断を会社の知能にする", render: renderDecisions }
 };
 
@@ -296,7 +366,34 @@ document.querySelector("#primary-nav").addEventListener("click", e => {
 });
 content.addEventListener("click", e => {
   const button = e.target.closest("[data-action]");
-  if (button) openForm(button.dataset.action);
+  if (!button) return;
+  if (button.dataset.action === "approve-meeting") {
+    const meeting = state.meetings.find(item => item.id === button.dataset.meeting);
+    const candidate = meeting?.candidates.find(item => item.id === button.dataset.option);
+    if (!meeting || !candidate) return;
+    meeting.status = "decided";
+    meeting.selectedOption = candidate.id;
+    state.decisions.unshift({
+      id:`dec-${Date.now()}`, date:new Date().toISOString().slice(0,10), title:meeting.topic,
+      status:"approved", supervisor:"監督", reason:`Strategy Roomで「${candidate.title}」を採用。${candidate.detail}`
+    });
+    persist();
+    renderStrategy();
+    toast("監督判断を保存しました");
+    return;
+  }
+  openForm(button.dataset.action);
+});
+content.addEventListener("submit", e => {
+  if (e.target.id !== "meeting-form") return;
+  e.preventDefault();
+  const topic = new FormData(e.target).get("topic")?.trim();
+  if (!topic) return;
+  state.meetings ||= [];
+  state.meetings.unshift(buildMeeting(topic));
+  persist();
+  renderStrategy();
+  toast("作戦会議を開始しました");
 });
 form.addEventListener("submit", e => {
   e.preventDefault();
