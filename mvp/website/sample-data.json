@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "version": "0.1.0",
+    "companyName": "AI Operating Company",
+    "level": 1,
+    "xp": 100,
+    "xpGoal": 1000
+  },
+  "divisions": [],
+  "agents": [],
+  "products": [],
+  "kpis": [],
+  "improvements": [],
+  "decisions": [],
+  "activities": []
+}

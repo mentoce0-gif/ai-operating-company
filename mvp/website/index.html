@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#09110f" />
+    <meta
+      name="description"
+      content="AI社員が企画・制作・販売・改善を進める、ローカル完結の経営オペレーティングシステム。"
+    />
+    <title>AI Operating Company OS</title>
+    <link rel="icon" href="public/favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard" aria-label="AI Operating Company ホーム">
+          <span class="brand-mark">A</span>
+          <span>
+            <strong>AI Operating</strong>
+            <small>COMPANY OS / v0.1</small>
+          </span>
+        </a>
+
+        <nav id="primary-nav" class="primary-nav" aria-label="メインメニュー">
+          <button class="nav-item active" data-view="dashboard"><span>01</span>司令室</button>
+          <button class="nav-item" data-view="divisions"><span>02</span>事業部</button>
+          <button class="nav-item" data-view="agents"><span>03</span>AI社員</button>
+          <button class="nav-item" data-view="products"><span>04</span>商品</button>
+          <button class="nav-item" data-view="kpi"><span>05</span>KPI</button>
+          <button class="nav-item" data-view="decisions"><span>06</span>Decision Log</button>
+        </nav>
+
+        <div class="company-level">
+          <div class="level-row">
+            <span>COMPANY LEVEL</span>
+            <strong id="company-level">12</strong>
+          </div>
+          <div class="xp-track"><i id="xp-progress"></i></div>
+          <small id="xp-label">7,240 / 10,000 XP</small>
+        </div>
+
+        <div class="sidebar-actions">
+          <button class="ghost-button" id="import-button">JSONを読込</button>
+          <button class="primary-button" id="export-button">JSONで保存</button>
+          <input id="file-input" type="file" accept=".json,application/json" hidden />
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="view-eyebrow">COMPANY COMMAND CENTER</p>
+            <h1 id="view-title">おはようございます、監督。</h1>
+          </div>
+          <div class="topbar-meta">
+            <div class="system-status"><i></i><span>LOCAL SYSTEM</span><strong>ONLINE</strong></div>
+            <div class="clock">
+              <span id="current-date"></span>
+              <strong id="current-time"></strong>
+            </div>
+          </div>
+        </header>
+
+        <section id="app-content" class="content" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <dialog id="entity-dialog">
+      <form id="entity-form" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow" id="dialog-eyebrow">NEW RECORD</p>
+            <h2 id="dialog-title">新規登録</h2>
+          </div>
+          <button class="icon-button" id="dialog-close" type="button" aria-label="閉じる">×</button>
+        </div>
+        <div id="dialog-fields" class="dialog-fields"></div>
+        <div class="dialog-actions">
+          <button class="ghost-button" id="dialog-cancel" type="button">キャンセル</button>
+          <button class="primary-button" id="dialog-submit" value="default">保存する</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="empty-template">
+      <div class="empty-state">
+        <span>◇</span>
+        <h3>まだデータがありません</h3>
+        <p>最初のレコードを追加して、会社を動かしましょう。</p>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
