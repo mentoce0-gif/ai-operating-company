@@ -51,7 +51,26 @@ const seedData = {
   tasks: [
     { id:"TSK-0001", title:"STORES販売導線を開通する", productId:"PRD-0001", priority:"P0", status:"supervisor_review", owner:"監督", due:"", blocker:"販売URLの発行待ち。詳細はPrivateなNotionで管理。", nextAction:"STORESの商品URLを発行し、AI COOへ連携する。" }
   ],
-  sync: { source:"Notion", syncedAt:"2026-07-25T00:00:00+09:00", mode:"public-safe-snapshot" }
+  sync: { source:"Notion", syncedAt:"2026-07-25T00:00:00+09:00", mode:"public-safe-snapshot" },
+  memories: [
+    {
+      id: "mem-sales-email-setup",
+      category: "sales",
+      title: "営業メール送信前の独自ドメイン設定",
+      triggerKeywords: ["営業", "提案", "商談", "見込み客", "販売開始", "メール送信", "アウトバウンド"],
+      proposal: "営業メールを送る直前に、contact@aetheratelier.jp の送信環境を有効化してください。受信転送は稼働済みです。",
+      checklist: [
+        "ImprovMX Lightを契約する（年50ドル・1日25通）",
+        "contact@aetheratelier.jp のSMTP Credentialsを作成する",
+        "Value DomainへDKIM・DMARCレコードを追加する",
+        "Gmailの「他のメールアドレスを追加」でSMTPを設定する",
+        "別メールアドレス宛に到達・迷惑メール判定をテストする"
+      ],
+      priority: "P0",
+      status: "active",
+      updatedAt: "2026-07-25T23:40:00+09:00"
+    }
+  ]
 };
 
 let state = loadState();
@@ -101,6 +120,36 @@ function statusLabel(status) {
   return ({ working:"稼働中", review:"レビュー", idle:"待機中", approved:"承認", rejected:"却下", pending:"審議中", selling:"販売中", production:"制作中", idea:"企画中", improvement:"改善中", supervisor_review:"監督確認", paused:"保留", research:"調査中", completed:"完了" })[status] || status;
 }
 function stageIndex(stage) { return ({ idea:1, production:2, selling:3, improvement:4 })[stage] || 1; }
+function recallMemories(context) {
+  const normalized = String(context || "").toLowerCase();
+  return (state.memories || []).filter(memory =>
+    memory.status === "active" &&
+    memory.triggerKeywords.some(keyword => normalized.includes(keyword.toLowerCase()))
+  );
+}
+function salesContext() {
+  return [
+    ...state.products.filter(product => product.stage === "selling").map(product => `${product.name} 販売開始 営業`),
+    ...state.agents.map(agent => agent.nextTask),
+    ...(state.tasks || []).filter(task => task.status !== "completed").map(task => `${task.title} ${task.nextAction}`)
+  ].join(" ");
+}
+function memoryRecallHtml(memories, sourceLabel) {
+  if (!memories.length) return "";
+  return `<section class="memory-recall">
+    <div class="memory-recall-head">
+      <div><span>MEMORY RECALL / ${safe(sourceLabel)}</span><h3>過去の判断から、実行前チェックを呼び出しました</h3></div>
+      <span class="badge pending">${memories.length}件</span>
+    </div>
+    <div class="memory-grid">${memories.map(memory => `<article class="memory-card">
+      <div class="memory-card-top"><span class="badge rejected">${safe(memory.priority)}</span><small>${safe(memory.category).toUpperCase()}</small></div>
+      <h4>${safe(memory.title)}</h4>
+      <p>${safe(memory.proposal)}</p>
+      <ol>${memory.checklist.map(item => `<li>${safe(item)}</li>`).join("")}</ol>
+      <button class="ghost-button" data-action="memory-to-task" data-memory="${safe(memory.id)}">実行タスクへ追加</button>
+    </article>`).join("")}</div>
+  </section>`;
+}
 function sectionIntro(title, description, action, label) {
   return `<div class="view-intro"><div><h2>${title}</h2><p>${description}</p></div>${action ? `<button class="primary-button" data-action="${action}">${label}</button>` : ""}</div>`;
 }
@@ -114,6 +163,7 @@ function renderDashboard() {
   const working = state.agents.filter(a => a.status === "working").length;
   const pending = state.decisions.filter(d => d.status === "pending").length;
   const firstTask = state.tasks?.find(task => task.status !== "completed");
+  const recalledMemories = recallMemories(salesContext());
   const rooms = state.divisions.map(div => {
     const agents = state.agents.filter(a => a.divisionId === div.id);
     return `<div class="office-room" style="--room-color:${div.color}">
@@ -134,6 +184,7 @@ function renderDashboard() {
   }).join("");
   content.innerHTML = `
     ${sectionIntro("会社の現在地", "AI社員の稼働、事業進捗、監督判断をリアルタイムで俯瞰します。")}
+    ${memoryRecallHtml(recalledMemories, "LIVE OPERATIONS")}
     <div class="metric-grid">
       ${metric("MONTHLY REVENUE", compactYen(latest.revenue), `<strong>目標の ${attainment}%</strong> / ${compactYen(latest.target)}`)}
       ${metric("ACTIVE AGENTS", `${working}<small> / ${state.agents.length}</small>`, "AI社員が現在稼働中", "var(--accent-2)")}
@@ -261,6 +312,7 @@ function candidateAverage(candidate) {
 
 function renderStrategy() {
   const meeting = state.meetings?.[0];
+  const recalledMemories = meeting ? recallMemories(meeting.topic) : [];
   const opinions = meeting?.opinions.map(opinion => {
     const agent = agentOf(opinion.agentId);
     const div = divisionOf(agent.divisionId);
@@ -282,6 +334,7 @@ function renderStrategy() {
       <textarea name="topic" maxlength="240" required placeholder="相談テーマを入力（例：次の30日で最優先すべき事業施策は？）"></textarea>
       <button class="primary-button" type="submit">会議を招集</button>
     </form>
+    ${memoryRecallHtml(recalledMemories, "MEETING CONTEXT")}
     ${meeting ? `<section class="panel">
       <div class="meeting-meta"><span class="badge ${meeting.status === "decided" ? "approved" : "review"}">${meeting.status === "decided" ? "決定済み" : "議論中"}</span><small>${new Date(meeting.createdAt).toLocaleString("ja-JP")}</small></div>
       <h3 class="meeting-topic">${safe(meeting.topic)}</h3>
@@ -402,6 +455,32 @@ content.addEventListener("click", e => {
     persist();
     renderStrategy();
     toast("監督判断を保存しました");
+    return;
+  }
+  if (button.dataset.action === "memory-to-task") {
+    const memory = (state.memories || []).find(item => item.id === button.dataset.memory);
+    if (!memory) return;
+    const existing = (state.tasks || []).find(task => task.memoryId === memory.id && task.status !== "completed");
+    if (existing) {
+      toast("このメモリはすでに実行タスクへ追加されています");
+      return;
+    }
+    state.tasks ||= [];
+    state.tasks.unshift({
+      id: `TSK-${Date.now()}`,
+      title: memory.title,
+      productId: "",
+      priority: memory.priority,
+      status: "paused",
+      owner: "監督",
+      due: "",
+      blocker: "営業メール送信の開始判断待ち",
+      nextAction: memory.checklist.join(" → "),
+      memoryId: memory.id
+    });
+    persist();
+    render();
+    toast("メモリから実行タスクを作成しました");
     return;
   }
   openForm(button.dataset.action);

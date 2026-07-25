@@ -13,9 +13,27 @@
   "improvements": [],
   "decisions": [],
   "activities": [],
-  "meetings": []
-  ,
+  "meetings": [],
   "tasks": [],
+  "memories": [
+    {
+      "id": "mem-sales-email-setup",
+      "category": "sales",
+      "title": "営業メール送信前の独自ドメイン設定",
+      "triggerKeywords": ["営業", "提案", "商談", "見込み客", "販売開始", "メール送信", "アウトバウンド"],
+      "proposal": "営業メールを送る直前に、contact@aetheratelier.jp の送信環境を有効化してください。",
+      "checklist": [
+        "ImprovMX Lightを契約する",
+        "SMTP Credentialsを作成する",
+        "DKIM・DMARCを設定する",
+        "Gmailへ送信元を追加する",
+        "別アドレス宛にテスト送信する"
+      ],
+      "priority": "P0",
+      "status": "active",
+      "updatedAt": "2026-07-25T23:40:00+09:00"
+    }
+  ],
   "sync": {
     "source": "Notion",
     "syncedAt": "",

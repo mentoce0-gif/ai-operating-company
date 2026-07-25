@@ -177,6 +177,21 @@ tr:last-child td { border-bottom: 0; }
 .suggestion { border-left: 2px solid var(--accent); padding: 11px 13px; background: rgba(217,255,87,.035); margin-top: 8px; border-radius: 0 9px 9px 0; }
 .suggestion strong { font-size: 10px; }
 .suggestion p { color: var(--muted); font-size: 9px; line-height: 1.55; margin: 5px 0 0; }
+.memory-recall {
+  margin-bottom: 16px; padding: 16px; border: 1px solid rgba(255,180,91,.3); border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(255,180,91,.08), rgba(13,24,21,.92)); box-shadow: var(--shadow);
+}
+.memory-recall-head { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 12px; }
+.memory-recall-head span:first-child { color: var(--warning); font: 8px ui-monospace, monospace; letter-spacing: .12em; }
+.memory-recall-head h3 { margin: 5px 0 0; font-size: 13px; }
+.memory-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.memory-card { padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: rgba(3,11,9,.45); }
+.memory-card-top { display: flex; justify-content: space-between; align-items: center; }
+.memory-card-top small { color: var(--muted); font: 8px ui-monospace, monospace; letter-spacing: .1em; }
+.memory-card h4 { margin: 10px 0 6px; font-size: 12px; }
+.memory-card p { margin: 0; color: #c2cec7; font-size: 9px; line-height: 1.6; }
+.memory-card ol { margin: 12px 0; padding-left: 18px; color: var(--muted); font-size: 9px; line-height: 1.7; }
+.memory-card .ghost-button { width: 100%; }
 .mode-banner {
   display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 16px; padding: 13px 16px;
   border: 1px solid rgba(255,180,91,.24); border-radius: 12px; background: rgba(255,180,91,.05);
@@ -257,6 +272,7 @@ dialog form { padding: 22px; }
   .content { padding: 20px 16px 36px; }
   .office-floor, .card-grid { grid-template-columns: 1fr; }
   .opinion-grid, .candidate-grid { grid-template-columns: 1fr; }
+  .memory-grid { grid-template-columns: 1fr; }
   .meeting-form { grid-template-columns: 1fr; }
 }
 @media (max-width: 500px) {
