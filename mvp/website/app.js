@@ -17,6 +17,7 @@ const seedData = {
     { id: "agt-006", name: "SENA", role: "Sales Agent", divisionId: "div-enterprise", status: "working", output: "商談提案書 3件", nextTask: "見込み客12社へ提案", performance: 87 }
   ],
   products: [
+    { id: "PRD-0001", name: "1業務7日ラボ", divisionId: "div-enterprise", stage: "selling", price: 4980, ownerId: "agt-006", progress: 85, sales: 0, salesUrl: "https://one-work-seven-day-lab.hogehoge24.chatgpt.site" },
     { id: "prd-001", name: "AI経営設計 Sprint", divisionId: "div-enterprise", stage: "selling", price: 480000, ownerId: "agt-001", progress: 100, sales: 3 },
     { id: "prd-002", name: "Creator OS Starter Kit", divisionId: "div-creator", stage: "production", price: 19800, ownerId: "agt-002", progress: 68, sales: 0 },
     { id: "prd-003", name: "MIRA Character Pack", divisionId: "div-character", stage: "idea", price: 4800, ownerId: "agt-003", progress: 22, sales: 0 },
@@ -46,6 +47,11 @@ const seedData = {
     { time: "08:31", agentId: "agt-003", text: "監督レビューを申請しました", type: "review" }
   ],
   meetings: []
+  ,
+  tasks: [
+    { id:"TSK-0001", title:"STORES販売導線を開通する", productId:"PRD-0001", priority:"P0", status:"supervisor_review", owner:"監督", due:"", blocker:"販売URLの発行待ち。詳細はPrivateなNotionで管理。", nextAction:"STORESの商品URLを発行し、AI COOへ連携する。" }
+  ],
+  sync: { source:"Notion", syncedAt:"2026-07-25T00:00:00+09:00", mode:"public-safe-snapshot" }
 };
 
 let state = loadState();
@@ -66,7 +72,16 @@ function clone(data) { return JSON.parse(JSON.stringify(data)); }
 function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? { ...clone(seedData), ...JSON.parse(saved) } : clone(seedData);
+    if (!saved) return clone(seedData);
+    const parsed = JSON.parse(saved);
+    const merged = { ...clone(seedData), ...parsed };
+    if (!merged.products.some(product => product.id === "PRD-0001")) {
+      merged.products.unshift(clone(seedData.products[0]));
+    }
+    merged.tasks = Array.isArray(parsed.tasks) ? parsed.tasks : clone(seedData.tasks);
+    merged.sync = clone(seedData.sync);
+    merged.meta = { ...merged.meta, version: seedData.meta.version };
+    return merged;
   } catch { return clone(seedData); }
 }
 function persist() {
@@ -83,7 +98,7 @@ function emptyState() {
   return document.querySelector("#empty-template").innerHTML;
 }
 function statusLabel(status) {
-  return ({ working:"稼働中", review:"レビュー", idle:"待機中", approved:"承認", rejected:"却下", pending:"審議中", selling:"販売中", production:"制作中", idea:"企画中", improvement:"改善中" })[status] || status;
+  return ({ working:"稼働中", review:"レビュー", idle:"待機中", approved:"承認", rejected:"却下", pending:"審議中", selling:"販売中", production:"制作中", idea:"企画中", improvement:"改善中", supervisor_review:"監督確認", paused:"保留", research:"調査中", completed:"完了" })[status] || status;
 }
 function stageIndex(stage) { return ({ idea:1, production:2, selling:3, improvement:4 })[stage] || 1; }
 function sectionIntro(title, description, action, label) {
@@ -98,6 +113,7 @@ function renderDashboard() {
   const attainment = latest.target ? Math.round(latest.revenue / latest.target * 100) : 0;
   const working = state.agents.filter(a => a.status === "working").length;
   const pending = state.decisions.filter(d => d.status === "pending").length;
+  const firstTask = state.tasks?.find(task => task.status !== "completed");
   const rooms = state.divisions.map(div => {
     const agents = state.agents.filter(a => a.divisionId === div.id);
     return `<div class="office-room" style="--room-color:${div.color}">
@@ -128,8 +144,14 @@ function renderDashboard() {
       <section class="panel"><div class="panel-header"><h3>AI OFFICE / LIVE</h3><small>${working} AGENTS WORKING</small></div><div class="office-floor">${rooms}</div></section>
       <section class="panel"><div class="panel-header"><h3>ACTIVITY STREAM</h3><small>TODAY</small></div><div class="activity-list">${activity || emptyState()}</div></section>
       <section class="panel"><div class="panel-header"><h3>DIVISION PERFORMANCE</h3><small>REVENUE / BUDGET</small></div><div class="progress-section">${divisionProgress}</div></section>
-      <section class="panel"><div class="panel-header"><h3>NEXT SUPERVISOR ACTION</h3><small>${pending ? "ACTION REQUIRED" : "CLEAR"}</small></div>
-        ${pending ? state.decisions.filter(d => d.status === "pending").slice(0,2).map(d => `<div class="suggestion"><strong>${safe(d.title)}</strong><p>${safe(d.reason)}</p></div>`).join("") : `<div class="suggestion"><strong>全判断が処理済みです</strong><p>AI社員は承認済みの方針に沿って稼働しています。</p></div>`}
+      <section class="panel"><div class="panel-header"><h3>FIRST TASK / NOTION</h3><small>${firstTask ? "ACTION REQUIRED" : "CLEAR"}</small></div>
+        ${firstTask ? `<div class="first-task">
+          <div class="meeting-meta"><span class="badge rejected">${safe(firstTask.priority)}</span><span class="badge review">${statusLabel(firstTask.status)}</span><small>${safe(firstTask.owner)} / ${safe(firstTask.due || "期限未設定")}</small></div>
+          <h3>${safe(firstTask.title)}</h3>
+          <p>${safe(firstTask.nextAction)}</p>
+          <div class="task-blocker"><strong>依存・阻害</strong><span>${safe(firstTask.blocker)}</span></div>
+          ${firstTask.notionUrl ? `<a class="ghost-button notion-link" href="${safe(firstTask.notionUrl)}" target="_blank" rel="noopener">Notionで開く ↗</a>` : `<small>詳細はPrivateなNotionで管理</small>`}
+        </div>` : `<div class="suggestion"><strong>未完了タスクはありません</strong><p>次の作戦会議から実行候補を作成してください。</p></div>`}
       </section>
     </div>`;
 }

@@ -14,4 +14,11 @@
   "decisions": [],
   "activities": [],
   "meetings": []
+  ,
+  "tasks": [],
+  "sync": {
+    "source": "Notion",
+    "syncedAt": "",
+    "mode": "public-safe-snapshot"
+  }
 }
